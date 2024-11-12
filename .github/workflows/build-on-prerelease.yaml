@@ -1,0 +1,61 @@
+name:  Build and Deploy from Draft Release
+
+on:
+  release:
+    types: [prereleased]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  
+
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@v3 
+
+      - name: Set Up Google Cloud SDK
+        uses: 'google-github-actions/auth@v2'
+        with:
+          version: 'latest'
+          credentials_json: ${{ secrets.GCP_KEY }} 
+
+      - name: Authenticate Docker to GCR
+        run: |
+          gcloud auth configure-docker  us-central1-docker.pkg.dev
+
+      - name: Tagging
+        run: |
+          
+          TAG_NAME=${{ github.event.release.tag_name }} 
+          echo "${TAG_NAME}" 
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV 
+
+      - name: Build Docker Image
+        run: |
+          IMAGE_NAME="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-ms-repository/pyappapi"
+          docker build -t ${IMAGE_NAME}:${{ env.TAG_NAME }} . 
+      
+      - name: Push Docker Image to GCR
+        run: | 
+          IMAGE_NAME="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-ms-repository/pyappapi"
+          docker push ${IMAGE_NAME}:${{ env.TAG_NAME }}
+      
+      - name: Image Vulnerability Scanning 
+        run: | 
+          echo "Running Image Vulnerability Scanning"
+
+  deploy:
+    runs-on: ubuntu-latest 
+
+    steps:
+      - name: Deploy to Kubernetes Cluster
+        run: | 
+          echo "Actual steps for Kubernetes Deployment"
+
+      - name: Validate Deployment
+        run: | 
+          echo "Validate or rollback on failure" 
+     
+      - name: Run Automation Suite 
+        run: | 
+          echo "Running Automation Suite" 
+          
