@@ -31,12 +31,12 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          IMAGE_NAME="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-ms-repository/pyappapi"
+          IMAGE_NAME="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-ms-repository/sample-app"
           docker build -t ${IMAGE_NAME}:${{ env.TAG_NAME }} . 
       
       - name: Push Docker Image to GCR
         run: | 
-          IMAGE_NAME="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-ms-repository/pyappapi"
+          IMAGE_NAME="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-ms-repository/sample-app"
           docker push ${IMAGE_NAME}:${{ env.TAG_NAME }}
       
       - name: Image Vulnerability Scanning 
