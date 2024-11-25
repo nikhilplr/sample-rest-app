@@ -4,9 +4,14 @@ on:
   release:
     types: [prereleased]
 
+env:
+  NAME_SPACE: myapp-k8s-qa
+
 jobs:
   build:
     runs-on: ubuntu-latest  
+    outputs:
+      image_tag_name: ${{ steps.build_image.outputs.image_tag_name }}
 
     steps:
       - name: Check Out Repository
@@ -30,9 +35,11 @@ jobs:
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV 
 
       - name: Build Docker Image
+        id: build_image
         run: |
           IMAGE_NAME="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-ms-repository/sample-app"
           docker build -t ${IMAGE_NAME}:${{ env.TAG_NAME }} . 
+          echo "image_tag_name=${{ env.TAG_NAME }}" >> "$GITHUB_OUTPUT"
       
       - name: Push Docker Image to GCR
         run: | 
@@ -44,19 +51,43 @@ jobs:
           echo "Running Image Vulnerability Scanning"
 
   deploy:
-    runs-on: ubuntu-latest
-    needs: build 
-
+    runs-on: ubuntu-latest 
+    needs: build
     steps:
+      # Check out the repository
+      - name: Check Out Code
+        uses: actions/checkout@v3
+
+      - name: Set Up Google Cloud SDK
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_KEY }} 
+
+      # Get the GKE credentials so we can deploy to the cluster
+      - name: Set up GKE credentials
+        uses: google-github-actions/get-gke-credentials@v0
+        with:
+          cluster_name: myk8-cluster
+          location: us-central1-c 
+  
+      
       - name: Deploy to Kubernetes Cluster
-        run: | 
-          echo "Actual steps for Kubernetes Deployment"
+        run: |    
+          export NAME_SPACE=${{ env.NAME_SPACE }} 
+          export IMAGE_NAME="sample-app:${{ needs.build.outputs.image_tag_name }}"
+          envsubst < deploy/deployment.yaml > deploy/updated-deployment.yaml
+          envsubst < deploy/service.yaml > deploy/updated-service.yaml
+          kubectl apply -f deploy/updated-deployment.yaml
+          kubectl apply -f deploy/updated-service.yaml 
 
       - name: Validate Deployment
-        run: | 
+        run: |  
           echo "Validate or rollback on failure" 
-     
+          kubectl get deploy -n ${{ env.NAME_SPACE }} 
+          kubectl get po -n ${{ env.NAME_SPACE }} 
+          kubectl get service -n ${{ env.NAME_SPACE }} 
+      
       - name: Run Automation Suite 
         run: | 
           echo "Running Automation Suite" 
-          
+            
